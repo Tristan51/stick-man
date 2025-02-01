@@ -13,8 +13,8 @@ class Point {
     }
 
     update(dt) {
-        const vx = (this.x - this.oldx) * 0.5; // Increased friction
-        const vy = (this.y - this.oldy) * 0.5;
+        const vx = (this.x - this.oldx) * 0.9; // Increased friction
+        const vy = (this.y - this.oldy) * 0.9;
         this.oldx = this.x;
         this.oldy = this.y;
         this.x += vx;
@@ -127,8 +127,8 @@ class AI {
 
     applyActions(stickman) {
         Object.keys(stickman.points).forEach(joint => {
-            stickman.points[joint].x += this.jointForces[joint] * 2;
-            stickman.points[joint].y += this.jointForces[joint] * 2;
+            stickman.points[joint].x += this.jointForces[joint] * 1.5;
+            stickman.points[joint].y += this.jointForces[joint] * 1.5;
         });
     }
 }
