@@ -12,8 +12,8 @@ class Point {
         this.oldy = y;
     }
 
-    update(dt) {
-        const vx = (this.x - this.oldx) * 0.99; // Damping
+    update() {
+        const vx = (this.x - this.oldx) * 0.99;
         const vy = (this.y - this.oldy) * 0.99;
         this.oldx = this.x;
         this.oldy = this.y;
@@ -25,7 +25,7 @@ class Point {
     constrain() {
         if (this.y > canvas.height - 50) {
             this.y = canvas.height - 50;
-            this.x -= (this.x - this.oldx) * 0.5; // Friction
+            this.oldy = this.y; // Stop movement when touching ground
         }
     }
 }
@@ -80,16 +80,21 @@ class Stickman {
             new Stick(this.rightKnee, this.rightFoot, 50)
         ];
 
-        this.feetOnGround = 0;
-        this.timeBalanced = 0;
+        this.joints = [
+            this.head, this.shoulder, this.hip, this.leftElbow, this.rightElbow,
+            this.leftHand, this.rightHand, this.leftKnee, this.rightKnee,
+            this.leftFoot, this.rightFoot
+        ];
     }
 
-    update(dt) {
-        [...this.sticks].forEach(stick => stick.update());
-        [...this.sticks].forEach(stick => {
-            if (stick.p1.y >= canvas.height - 50) stick.p1.y = canvas.height - 50;
-            if (stick.p2.y >= canvas.height - 50) stick.p2.y = canvas.height - 50;
-        });
+    update() {
+        this.joints.forEach(joint => joint.update());
+
+        for (let i = 0; i < 5; i++) { // Multiple iterations for stability
+            this.sticks.forEach(stick => stick.update());
+        }
+
+        this.joints.forEach(joint => joint.constrain());
     }
 
     draw() {
@@ -107,8 +112,9 @@ class Stickman {
 }
 
 const stickman = new Stickman();
+
 function train() {
-    stickman.update(1);
+    stickman.update();
     stickman.draw();
     requestAnimationFrame(train);
 }
