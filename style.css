@@ -1,8 +1,20 @@
 body {
     margin: 0;
-    overflow: hidden; /* Prevent scrollbars */
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #f0f0f0;
 }
 
-#stickmanCanvas {
-    display: block; /* Ensure canvas is a block element */
+canvas {
+    border: 1px solid #000;
+    display: block;
+}
+
+button {
+    position: absolute;
+    z-index: 10;
 }
