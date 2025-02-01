@@ -99,12 +99,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 new Stick(this.points.hip, this.points.rightKnee, 50),
                 new Stick(this.points.rightKnee, this.points.rightFoot, 50)
             ];
+
+            // Tracking time for standing on two feet
+            this.standingTime = 0;
+            this.isStanding = false;
         }
 
         update(dt) {
             Object.values(this.points).forEach(point => point.update(dt));
             this.sticks.forEach(stick => stick.update());
             Object.values(this.points).forEach(point => point.constrain());
+
+            // Check if the stickman is standing
+            const feetOnGround = this.isFeetOnGround();
+            if (feetOnGround) {
+                this.standingTime += dt;
+            } else {
+                this.standingTime = 0;  // Reset time if not standing
+            }
         }
 
         draw() {
@@ -119,14 +131,66 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.stroke();
             });
         }
+
+        // Check if both feet are on the ground for 3 seconds (or depending on speed multiplier)
+        isFeetOnGround() {
+            return this.points.leftFoot.y >= canvas.height - 50 && this.points.rightFoot.y >= canvas.height - 50;
+        }
+    }
+
+    class AI {
+        constructor() {
+            this.jointForces = Object.keys(new Stickman().points).reduce((acc, joint) => {
+                acc[joint] = 0;
+                return acc;
+            }, {});
+        }
+
+        decideAction() {
+            // Apply random forces on joints
+            Object.keys(this.jointForces).forEach(joint => {
+                this.jointForces[joint] = (Math.random() - 0.5) * 2;
+            });
+        }
+
+        applyActions(stickman) {
+            Object.keys(stickman.points).forEach(joint => {
+                stickman.points[joint].x += this.jointForces[joint] * 1.5;
+                stickman.points[joint].y += this.jointForces[joint] * 1.5;
+            });
+        }
+
+        reward(stickman) {
+            // Positive reward if feet are on the ground for enough time
+            if (stickman.standingTime >= 3) {
+                return 1;  // Positive reward
+            } else if (stickman.standingTime > 0 && stickman.isFeetOnGround()) {
+                return 0.1;  // Small reward
+            } else {
+                return -1; // Negative reward if not balanced
+            }
+        }
     }
 
     const stickman = new Stickman();
+    const ai = new AI();
 
-    // Basic training loop without AI learning logic
+    let speedMultiplier = 1;
+
     function train() {
-        stickman.update(1);
+        ai.decideAction();
+        ai.applyActions(stickman);
+
+        stickman.update(speedMultiplier);
         stickman.draw();
+
+        const reward = ai.reward(stickman);
+
+        console.log(`Reward: ${reward}`);
+
+        // Adjust the AI's behavior based on reward
+        // For now, just log and visualize. We can add learning algorithms later.
+
         requestAnimationFrame(train);
     }
 
