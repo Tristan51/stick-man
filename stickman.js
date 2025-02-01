@@ -1,60 +1,33 @@
-// Global variables to track learning
-let score = 0;
-let learningRate = 0.05; // Determines how much the AI adjusts its forces after each step
-
-class AI {
-    constructor() {
-        this.jointForces = Object.keys(new Stickman().points).reduce((acc, joint) => {
-            acc[joint] = 0;
-            return acc;
-        }, {});
-        this.feetTouchingTime = 0; // Track time both feet are touching the ground
+class Point {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.oldx = x;
+        this.oldy = y;
     }
 
-    decideAction() {
-        // Generate random forces for each joint
-        Object.keys(this.jointForces).forEach(joint => {
-            this.jointForces[joint] = (Math.random() - 0.5) * 2; // Random forces
-        });
+    update(dt) {
+        const vx = (this.x - this.oldx) * 0.9;
+        const vy = (this.y - this.oldy) * 0.9;
+        this.oldx = this.x;
+        this.oldy = this.y;
+        this.x += vx;
+        this.y += vy;
+        this.y += 0.5; // Gravity
     }
 
-    // Apply actions based on current joint forces
-    applyActions(stickman) {
-        Object.keys(stickman.points).forEach(joint => {
-            stickman.points[joint].x += this.jointForces[joint] * learningRate;
-            stickman.points[joint].y += this.jointForces[joint] * learningRate;
-        });
-    }
-
-    // Calculate and update score based on stickman’s feet touching the ground
-    updateScore(stickman) {
-        // Check if both feet are touching the ground
-        const feetOnGround = [stickman.points.leftFoot, stickman.points.rightFoot]
-            .every(point => point.y >= canvas.height - 50);
-        
-        // Increase time if both feet are on the ground
-        if (feetOnGround) {
-            this.feetTouchingTime += 1;
-        } else {
-            this.feetTouchingTime = 0;
+    constrain() {
+        if (this.y > canvas.height - 50) {
+            this.y = canvas.height - 50;
+            this.oldy = this.y;
         }
-
-        // Score system: +1 point for 3 seconds with feet on the ground
-        if (this.feetTouchingTime >= 3 * speedMultiplier) {
-            score += 1;
+        if (this.x < 0) {
+            this.x = 0;
+            this.oldx = this.x;
         }
-
-        // Negative points if too many limbs are touching the ground
-        const limbsTouchingGround = Object.values(stickman.points).filter(point => point.y >= canvas.height - 50).length;
-        if (limbsTouchingGround >= 8) {
-            score -= 1;
-        }
-
-        // Adjust AI behavior based on score (influences joint forces)
-        if (score > 0) {
-            learningRate = 0.05 + score * 0.01; // Increase learning rate as score improves
-        } else {
-            learningRate = 0.05; // Keep the base learning rate
+        if (this.x > canvas.width) {
+            this.x = canvas.width;
+            this.oldx = this.x;
         }
     }
 }
@@ -109,17 +82,78 @@ class Stickman {
     }
 }
 
-// Initialize the stickman and AI
+class AI {
+    constructor() {
+        this.jointForces = Object.keys(new Stickman().points).reduce((acc, joint) => {
+            acc[joint] = 0;
+            return acc;
+        }, {});
+        this.feetTouchingTime = 0;
+    }
+
+    decideAction(stickman) {
+        const centerOfMass = this.calculateCenterOfMass(stickman);
+        Object.keys(this.jointForces).forEach(joint => {
+            const dx = stickman.points[joint].x - centerOfMass.x;
+            const dy = stickman.points[joint].y - centerOfMass.y;
+            this.jointForces[joint] = -dx * 0.05 - dy * 0.05;
+        });
+    }
+
+    calculateCenterOfMass(stickman) {
+        let totalX = 0, totalY = 0, totalWeight = 0;
+        Object.values(stickman.points).forEach(point => {
+            totalX += point.x;
+            totalY += point.y;
+            totalWeight++;
+        });
+
+        return { x: totalX / totalWeight, y: totalY / totalWeight };
+    }
+
+    applyActions(stickman) {
+        Object.keys(stickman.points).forEach(joint => {
+            stickman.points[joint].x += this.jointForces[joint] * 0.05;
+            stickman.points[joint].y += this.jointForces[joint] * 0.05;
+        });
+    }
+
+    updateScore(stickman) {
+        const feetOnGround = [stickman.points.leftFoot, stickman.points.rightFoot]
+            .every(point => point.y >= canvas.height - 50);
+        
+        if (feetOnGround) {
+            this.feetTouchingTime += 1;
+        } else {
+            this.feetTouchingTime = 0;
+        }
+
+        if (this.feetTouchingTime >= 3 * speedMultiplier) {
+            score += 1;
+        }
+
+        const limbsTouchingGround = Object.values(stickman.points).filter(point => point.y >= canvas.height - 50).length;
+        if (limbsTouchingGround >= 8) {
+            score -= 1;
+        }
+
+        if (score > 0) {
+            learningRate = 0.05 + score * 0.01;
+        } else {
+            learningRate = 0.05;
+        }
+    }
+}
+
 const stickman = new Stickman();
 const ai = new AI();
 
-// Training loop
 function train() {
     for (let i = 0; i < speedMultiplier; i++) {
-        ai.decideAction();
+        ai.decideAction(stickman);
         ai.applyActions(stickman);
         stickman.update(1);
-        ai.updateScore(stickman); // Update score based on feet and limbs touching the ground
+        ai.updateScore(stickman);
     }
     stickman.draw();
     requestAnimationFrame(train);
