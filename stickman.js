@@ -6,7 +6,30 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error('Canvas or context not found');
     }
 
-    // Canvas sizing
+    // Speed button
+    const speedButton = document.createElement('button');
+    speedButton.textContent = 'Speed x1';
+    speedButton.style.position = 'absolute';
+    speedButton.style.top = '10px';
+    speedButton.style.left = '10px';
+    speedButton.style.padding = '10px';
+    speedButton.style.backgroundColor = '#007BFF';
+    speedButton.style.color = '#FFF';
+    speedButton.style.border = 'none';
+    speedButton.style.borderRadius = '5px';
+    speedButton.style.cursor = 'pointer';
+    document.body.appendChild(speedButton);
+
+    const speedLevels = [1, 10, 100, 1000];
+    let speedIndex = 0;
+    let speedMultiplier = speedLevels[speedIndex];
+
+    speedButton.addEventListener('click', () => {
+        speedIndex = (speedIndex + 1) % speedLevels.length;
+        speedMultiplier = speedLevels[speedIndex];
+        speedButton.textContent = `Speed x${speedMultiplier}`;
+    });
+
     function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
@@ -22,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.oldy = y;
         }
 
-        update(dt) {
+        update() {
             const vx = (this.x - this.oldx) * 0.9;
             const vy = (this.y - this.oldy) * 0.9;
             this.oldx = this.x;
@@ -77,10 +100,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 head: new Point(canvas.width / 2, canvas.height / 2 - 50),
                 shoulder: new Point(canvas.width / 2, canvas.height / 2 - 20),
                 hip: new Point(canvas.width / 2, canvas.height / 2 + 30),
-                leftElbow: new Point(canvas.width / 2 - 40, canvas.height / 2 - 20),
-                rightElbow: new Point(canvas.width / 2 + 40, canvas.height / 2 - 20),
-                leftHand: new Point(canvas.width / 2 - 80, canvas.height / 2 - 20),
-                rightHand: new Point(canvas.width / 2 + 80, canvas.height / 2 - 20),
                 leftKnee: new Point(canvas.width / 2 - 30, canvas.height / 2 + 80),
                 rightKnee: new Point(canvas.width / 2 + 30, canvas.height / 2 + 80),
                 leftFoot: new Point(canvas.width / 2 - 30, canvas.height / 2 + 130),
@@ -90,30 +109,40 @@ document.addEventListener('DOMContentLoaded', () => {
             this.sticks = [
                 new Stick(this.points.head, this.points.shoulder, 30),
                 new Stick(this.points.shoulder, this.points.hip, 50),
-                new Stick(this.points.shoulder, this.points.leftElbow, 40),
-                new Stick(this.points.leftElbow, this.points.leftHand, 40),
-                new Stick(this.points.shoulder, this.points.rightElbow, 40),
-                new Stick(this.points.rightElbow, this.points.rightHand, 40),
                 new Stick(this.points.hip, this.points.leftKnee, 50),
                 new Stick(this.points.leftKnee, this.points.leftFoot, 50),
                 new Stick(this.points.hip, this.points.rightKnee, 50),
                 new Stick(this.points.rightKnee, this.points.rightFoot, 50)
             ];
 
-            this.standingTime = 0;
-            this.isStanding = false;
+            this.score = 0;
+            this.timeStanding = 0;
         }
 
-        update(dt) {
-            Object.values(this.points).forEach(point => point.update(dt));
+        update() {
+            Object.values(this.points).forEach(point => point.update());
             this.sticks.forEach(stick => stick.update());
             Object.values(this.points).forEach(point => point.constrain());
+            this.evaluate();
+        }
 
-            const feetOnGround = this.isFeetOnGround();
-            if (feetOnGround) {
-                this.standingTime += dt;
+        evaluate() {
+            const feetOnGround = this.points.leftFoot.y >= canvas.height - 50 && this.points.rightFoot.y >= canvas.height - 50;
+            const otherLimbsTouching = Object.keys(this.points).some(key => key !== 'leftFoot' && key !== 'rightFoot' && this.points[key].y >= canvas.height - 50);
+
+            if (feetOnGround && !otherLimbsTouching) {
+                this.timeStanding += 1 / 60 * speedMultiplier;
+                if (this.timeStanding >= 3) {
+                    this.score += 1;
+                    this.timeStanding = 0;
+                    console.log("+1 Point! Score:", this.score);
+                }
             } else {
-                this.standingTime = 0;
+                this.timeStanding = 0;
+                if (Object.values(this.points).every(p => p.y >= canvas.height - 50)) {
+                    this.score -= 1;
+                    console.log("-1 Point! Score:", this.score);
+                }
             }
         }
 
@@ -129,62 +158,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.stroke();
             });
         }
-
-        isFeetOnGround() {
-            return this.points.leftFoot.y >= canvas.height - 50 && this.points.rightFoot.y >= canvas.height - 50;
-        }
-    }
-
-    class AI {
-        constructor() {
-            this.jointForces = Object.keys(new Stickman().points).reduce((acc, joint) => {
-                acc[joint] = 0;
-                return acc;
-            }, {});
-        }
-
-        decideAction() {
-            Object.keys(this.jointForces).forEach(joint => {
-                this.jointForces[joint] = (Math.random() - 0.5) * 5; // Adjust force magnitude for visible effect
-            });
-        }
-
-        applyActions(stickman) {
-            Object.keys(stickman.points).forEach(joint => {
-                stickman.points[joint].x += this.jointForces[joint] * 1.5;
-                stickman.points[joint].y += this.jointForces[joint] * 1.5;
-            });
-        }
-
-        reward(stickman) {
-            if (stickman.standingTime >= 3) {
-                return 1;
-            } else if (stickman.standingTime > 0 && stickman.isFeetOnGround()) {
-                return 0.1;
-            } else {
-                return -1;
-            }
-        }
     }
 
     const stickman = new Stickman();
-    const ai = new AI();
-
-    let speedMultiplier = 1;
 
     function train() {
-        ai.decideAction();
-        ai.applyActions(stickman);
-
-        stickman.update(speedMultiplier);
+        for (let i = 0; i < speedMultiplier; i++) {
+            stickman.update();
+        }
         stickman.draw();
-
-        const reward = ai.reward(stickman);
-
-        console.log(`Reward: ${reward}`);
-
         requestAnimationFrame(train);
     }
 
-    train(); // Start the training loop
+    train();
 });
