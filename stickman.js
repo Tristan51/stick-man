@@ -21,13 +21,19 @@ document.addEventListener('DOMContentLoaded', () => {
     speedButton.style.cursor = 'pointer';
     document.body.appendChild(speedButton);
 
-    let speedMultiplier = 1;
-    const speedOptions = [1, 10, 100, 1000]; // Available speed multipliers
-    let currentSpeedIndex = 0; // Start at the first option (1x speed)
+    let speedMultiplier = 1;  // This should be outside of the event listener
 
+    // Speed button event listener
     speedButton.addEventListener('click', () => {
-        currentSpeedIndex = (currentSpeedIndex + 1) % speedOptions.length; // Cycle through the options
-        speedMultiplier = speedOptions[currentSpeedIndex];
+        if (speedMultiplier === 1) {
+            speedMultiplier = 10;
+        } else if (speedMultiplier === 10) {
+            speedMultiplier = 100;
+        } else if (speedMultiplier === 100) {
+            speedMultiplier = 1000;
+        } else {
+            speedMultiplier = 1;
+        }
         speedButton.textContent = `Speed x${speedMultiplier}`;
     });
 
@@ -149,16 +155,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // AI class with learning mechanism
+    // AI class
     class AI {
         constructor() {
             this.jointForces = Object.keys(new Stickman().points).reduce((acc, joint) => {
                 acc[joint] = 0;
                 return acc;
             }, {});
-            this.learningRate = 0.1; // Rate at which the AI learns
-            this.standingTime = 0; // Track how long the AI has been standing
-            this.lastFeetTime = 0; // Track time for feet on ground
+            this.pointsHistory = {
+                leftFoot: 0,
+                rightFoot: 0
+            };
+            this.score = 0;
         }
 
         decideAction() {
@@ -174,48 +182,31 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        calculateReward(stickman) {
-            const footLeft = stickman.points.leftFoot.y;
-            const footRight = stickman.points.rightFoot.y;
+        calculateScore(stickman) {
+            // Check if both feet are on the ground and no other limbs are touching
+            let feetOnGround = 0;
+            let otherLimbsOnGround = 0;
 
-            // Time needed to keep feet on the ground
-            const timeToEarnPoint = 3 / speedMultiplier; // Adjusted based on speed multiplier
-            const currentTime = performance.now();
+            if (stickman.points.leftFoot.y === canvas.height - 50) feetOnGround++;
+            if (stickman.points.rightFoot.y === canvas.height - 50) feetOnGround++;
 
-            // Check if both feet are on the ground
-            const feetOnGround = (footLeft >= canvas.height - 50) && (footRight >= canvas.height - 50);
-            const otherLimbsTouching = Object.keys(stickman.points).some(joint => {
-                return joint !== 'leftFoot' && joint !== 'rightFoot' && stickman.points[joint].y >= canvas.height - 50;
-            });
+            if (stickman.points.leftHand.y === canvas.height - 50) otherLimbsOnGround++;
+            if (stickman.points.rightHand.y === canvas.height - 50) otherLimbsOnGround++;
+            if (stickman.points.leftKnee.y === canvas.height - 50) otherLimbsOnGround++;
+            if (stickman.points.rightKnee.y === canvas.height - 50) otherLimbsOnGround++;
 
-            if (feetOnGround && !otherLimbsTouching) {
-                if (currentTime - this.lastFeetTime >= timeToEarnPoint * 1000) {
-                    this.standingTime++;
-                    this.lastFeetTime = currentTime;
-                    return 1; // Reward for standing on feet
+            // Check for score update based on feet on the ground and other limbs
+            if (feetOnGround === 2 && otherLimbsOnGround === 0) {
+                this.pointsHistory.leftFoot++;
+                this.pointsHistory.rightFoot++;
+                if (this.pointsHistory.leftFoot > 3 && this.pointsHistory.rightFoot > 3) {
+                    this.score += 1;
+                    this.pointsHistory.leftFoot = 0;
+                    this.pointsHistory.rightFoot = 0;
                 }
             } else {
-                this.standingTime = 0; // Reset if not standing
+                this.score -= 1;
             }
-
-            // If all limbs are touching the ground
-            const allLimbsTouching = Object.keys(stickman.points).every(joint => {
-                return stickman.points[joint].y >= canvas.height - 50;
-            });
-
-            if (allLimbsTouching || (Object.keys(stickman.points).length - 1)) {
-                return -1; // Negative reward if all or all but one limb is touching the ground
-            }
-
-            return 0; // No reward if none of the conditions met
-        }
-
-        learn() {
-            // Learn from the reward, adjusting the forces accordingly
-            const reward = this.calculateReward(stickman);
-            Object.keys(this.jointForces).forEach(joint => {
-                this.jointForces[joint] += reward * this.learningRate;
-            });
         }
     }
 
@@ -226,9 +217,8 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < speedMultiplier; i++) {
             ai.decideAction();
             ai.applyActions(stickman);
-            ai.learn(); // Apply learning after each action
-
             stickman.update(1);
+            ai.calculateScore(stickman);
         }
         stickman.draw();
         requestAnimationFrame(train);
