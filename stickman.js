@@ -12,8 +12,8 @@ class Point {
         this.oldy = y;
     }
 
-    update() {
-        const vx = (this.x - this.oldx) * 0.99;
+    update(dt) {
+        const vx = (this.x - this.oldx) * 0.99; // Damping
         const vy = (this.y - this.oldy) * 0.99;
         this.oldx = this.x;
         this.oldy = this.y;
@@ -25,7 +25,7 @@ class Point {
     constrain() {
         if (this.y > canvas.height - 50) {
             this.y = canvas.height - 50;
-            this.oldy = this.y; // Stop movement when touching ground
+            this.oldy = this.y;
         }
     }
 }
@@ -55,52 +55,44 @@ class Stick {
 
 class Stickman {
     constructor() {
-        this.head = new Point(canvas.width / 2, canvas.height / 2 - 50);
-        this.shoulder = new Point(canvas.width / 2, canvas.height / 2 - 20);
-        this.hip = new Point(canvas.width / 2, canvas.height / 2 + 30);
-        this.leftElbow = new Point(canvas.width / 2 - 40, canvas.height / 2 - 20);
-        this.rightElbow = new Point(canvas.width / 2 + 40, canvas.height / 2 - 20);
-        this.leftHand = new Point(canvas.width / 2 - 80, canvas.height / 2 - 20);
-        this.rightHand = new Point(canvas.width / 2 + 80, canvas.height / 2 - 20);
-        this.leftKnee = new Point(canvas.width / 2 - 30, canvas.height / 2 + 80);
-        this.rightKnee = new Point(canvas.width / 2 + 30, canvas.height / 2 + 80);
-        this.leftFoot = new Point(canvas.width / 2 - 30, canvas.height / 2 + 130);
-        this.rightFoot = new Point(canvas.width / 2 + 30, canvas.height / 2 + 130);
+        this.points = {
+            head: new Point(canvas.width / 2, canvas.height / 2 - 50),
+            shoulder: new Point(canvas.width / 2, canvas.height / 2 - 20),
+            hip: new Point(canvas.width / 2, canvas.height / 2 + 30),
+            leftElbow: new Point(canvas.width / 2 - 40, canvas.height / 2 - 20),
+            rightElbow: new Point(canvas.width / 2 + 40, canvas.height / 2 - 20),
+            leftHand: new Point(canvas.width / 2 - 80, canvas.height / 2 - 20),
+            rightHand: new Point(canvas.width / 2 + 80, canvas.height / 2 - 20),
+            leftKnee: new Point(canvas.width / 2 - 30, canvas.height / 2 + 80),
+            rightKnee: new Point(canvas.width / 2 + 30, canvas.height / 2 + 80),
+            leftFoot: new Point(canvas.width / 2 - 30, canvas.height / 2 + 130),
+            rightFoot: new Point(canvas.width / 2 + 30, canvas.height / 2 + 130)
+        };
 
         this.sticks = [
-            new Stick(this.head, this.shoulder, 30),
-            new Stick(this.shoulder, this.hip, 50),
-            new Stick(this.shoulder, this.leftElbow, 40),
-            new Stick(this.leftElbow, this.leftHand, 40),
-            new Stick(this.shoulder, this.rightElbow, 40),
-            new Stick(this.rightElbow, this.rightHand, 40),
-            new Stick(this.hip, this.leftKnee, 50),
-            new Stick(this.leftKnee, this.leftFoot, 50),
-            new Stick(this.hip, this.rightKnee, 50),
-            new Stick(this.rightKnee, this.rightFoot, 50)
-        ];
-
-        this.joints = [
-            this.head, this.shoulder, this.hip, this.leftElbow, this.rightElbow,
-            this.leftHand, this.rightHand, this.leftKnee, this.rightKnee,
-            this.leftFoot, this.rightFoot
+            new Stick(this.points.head, this.points.shoulder, 30),
+            new Stick(this.points.shoulder, this.points.hip, 50),
+            new Stick(this.points.shoulder, this.points.leftElbow, 40),
+            new Stick(this.points.leftElbow, this.points.leftHand, 40),
+            new Stick(this.points.shoulder, this.points.rightElbow, 40),
+            new Stick(this.points.rightElbow, this.points.rightHand, 40),
+            new Stick(this.points.hip, this.points.leftKnee, 50),
+            new Stick(this.points.leftKnee, this.points.leftFoot, 50),
+            new Stick(this.points.hip, this.points.rightKnee, 50),
+            new Stick(this.points.rightKnee, this.points.rightFoot, 50)
         ];
     }
 
-    update() {
-        this.joints.forEach(joint => joint.update());
-
-        for (let i = 0; i < 5; i++) { // Multiple iterations for stability
-            this.sticks.forEach(stick => stick.update());
-        }
-
-        this.joints.forEach(joint => joint.constrain());
+    update(dt) {
+        Object.values(this.points).forEach(point => point.update(dt));
+        this.sticks.forEach(stick => stick.update());
+        Object.values(this.points).forEach(point => point.constrain());
     }
 
     draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.beginPath();
-        ctx.arc(this.head.x, this.head.y, 30, 0, Math.PI * 2);
+        ctx.arc(this.points.head.x, this.points.head.y, 30, 0, Math.PI * 2);
         ctx.stroke();
         this.sticks.forEach(stick => {
             ctx.beginPath();
@@ -111,10 +103,35 @@ class Stickman {
     }
 }
 
+class AI {
+    constructor() {
+        this.jointForces = Object.keys(new Stickman().points).reduce((acc, joint) => {
+            acc[joint] = 0;
+            return acc;
+        }, {});
+    }
+
+    decideAction() {
+        Object.keys(this.jointForces).forEach(joint => {
+            this.jointForces[joint] = (Math.random() - 0.5) * 2; 
+        });
+    }
+
+    applyActions(stickman) {
+        Object.keys(stickman.points).forEach(joint => {
+            stickman.points[joint].x += this.jointForces[joint] * 2;
+            stickman.points[joint].y += this.jointForces[joint] * 2;
+        });
+    }
+}
+
 const stickman = new Stickman();
+const ai = new AI();
 
 function train() {
-    stickman.update();
+    ai.decideAction();
+    ai.applyActions(stickman);
+    stickman.update(1);
     stickman.draw();
     requestAnimationFrame(train);
 }
