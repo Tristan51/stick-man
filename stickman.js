@@ -99,6 +99,8 @@ document.addEventListener('DOMContentLoaded', () => {
             this.points = {
                 head: new Point(canvas.width / 2, canvas.height / 2 - 50),
                 shoulder: new Point(canvas.width / 2, canvas.height / 2 - 20),
+                leftHand: new Point(canvas.width / 2 - 40, canvas.height / 2),
+                rightHand: new Point(canvas.width / 2 + 40, canvas.height / 2),
                 hip: new Point(canvas.width / 2, canvas.height / 2 + 30),
                 leftKnee: new Point(canvas.width / 2 - 30, canvas.height / 2 + 80),
                 rightKnee: new Point(canvas.width / 2 + 30, canvas.height / 2 + 80),
@@ -108,6 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             this.sticks = [
                 new Stick(this.points.head, this.points.shoulder, 30),
+                new Stick(this.points.shoulder, this.points.leftHand, 40),
+                new Stick(this.points.shoulder, this.points.rightHand, 40),
                 new Stick(this.points.shoulder, this.points.hip, 50),
                 new Stick(this.points.hip, this.points.leftKnee, 50),
                 new Stick(this.points.leftKnee, this.points.leftFoot, 50),
