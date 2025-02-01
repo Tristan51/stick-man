@@ -19,7 +19,7 @@ class Point {
         this.oldy = this.y;
         this.x += vx;
         this.y += vy;
-        this.y += 0.8; // Reduced Gravity
+        this.y += 0.2; // Reduced Gravity
     }
 
     constrain() {
