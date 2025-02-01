@@ -1,4 +1,5 @@
-const canvas = document.getElementById('stickmanCanvas');
+document.addEventListener('DOMContentLoaded', () => {
+    const canvas = document.getElementById('stickmanCanvas');
 const ctx = canvas.getContext('2d');
 
 // Ensure canvas and context exist
@@ -181,3 +182,5 @@ function train() {
 }
 
 train();
+
+});
