@@ -13,8 +13,8 @@ class Point {
     }
 
     update(dt) {
-        const vx = (this.x - this.oldx) * 0.98; // Added friction
-        const vy = (this.y - this.oldy) * 0.98;
+        const vx = (this.x - this.oldx) * 1; // Added friction
+        const vy = (this.y - this.oldy) * 1;
         this.oldx = this.x;
         this.oldy = this.y;
         this.x += vx;
