@@ -1,0 +1,8 @@
+body {
+    margin: 0;
+    overflow: hidden; /* Prevent scrollbars */
+}
+
+#stickmanCanvas {
+    display: block; /* Ensure canvas is a block element */
+}
