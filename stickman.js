@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Speed button
     const speedButton = document.createElement('button');
-    speedButton.textContent = 'Speed x1';
+    speedButton.textContent = 'Speed x10';
     speedButton.style.position = 'absolute';
     speedButton.style.top = '10px';
     speedButton.style.left = '10px';
@@ -21,19 +21,9 @@ document.addEventListener('DOMContentLoaded', () => {
     speedButton.style.cursor = 'pointer';
     document.body.appendChild(speedButton);
 
-    let speedMultiplier = 1;  // This should be outside of the event listener
-
-    // Speed button event listener
+    let speedMultiplier = 1;
     speedButton.addEventListener('click', () => {
-        if (speedMultiplier === 1) {
-            speedMultiplier = 10;
-        } else if (speedMultiplier === 10) {
-            speedMultiplier = 100;
-        } else if (speedMultiplier === 100) {
-            speedMultiplier = 1000;
-        } else {
-            speedMultiplier = 1;
-        }
+        speedMultiplier = speedMultiplier === 1 ? 10 : (speedMultiplier === 10 ? 100 : (speedMultiplier === 100 ? 1000 : 1));
         speedButton.textContent = `Speed x${speedMultiplier}`;
     });
 
@@ -162,11 +152,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 acc[joint] = 0;
                 return acc;
             }, {});
-            this.pointsHistory = {
-                leftFoot: 0,
-                rightFoot: 0
-            };
-            this.score = 0;
         }
 
         decideAction() {
@@ -181,33 +166,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 stickman.points[joint].y += this.jointForces[joint] * 1.5;
             });
         }
-
-        calculateScore(stickman) {
-            // Check if both feet are on the ground and no other limbs are touching
-            let feetOnGround = 0;
-            let otherLimbsOnGround = 0;
-
-            if (stickman.points.leftFoot.y === canvas.height - 50) feetOnGround++;
-            if (stickman.points.rightFoot.y === canvas.height - 50) feetOnGround++;
-
-            if (stickman.points.leftHand.y === canvas.height - 50) otherLimbsOnGround++;
-            if (stickman.points.rightHand.y === canvas.height - 50) otherLimbsOnGround++;
-            if (stickman.points.leftKnee.y === canvas.height - 50) otherLimbsOnGround++;
-            if (stickman.points.rightKnee.y === canvas.height - 50) otherLimbsOnGround++;
-
-            // Check for score update based on feet on the ground and other limbs
-            if (feetOnGround === 2 && otherLimbsOnGround === 0) {
-                this.pointsHistory.leftFoot++;
-                this.pointsHistory.rightFoot++;
-                if (this.pointsHistory.leftFoot > 3 && this.pointsHistory.rightFoot > 3) {
-                    this.score += 1;
-                    this.pointsHistory.leftFoot = 0;
-                    this.pointsHistory.rightFoot = 0;
-                }
-            } else {
-                this.score -= 1;
-            }
-        }
     }
 
     const stickman = new Stickman();
@@ -218,7 +176,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ai.decideAction();
             ai.applyActions(stickman);
             stickman.update(1);
-            ai.calculateScore(stickman);
         }
         stickman.draw();
         requestAnimationFrame(train);
