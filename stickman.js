@@ -4,196 +4,108 @@ const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
+class Point {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.oldx = x;
+        this.oldy = y;
+    }
+
+    update(dt) {
+        const vx = (this.x - this.oldx) * 0.99; // Apply damping
+        const vy = (this.y - this.oldy) * 0.99;
+        this.oldx = this.x;
+        this.oldy = this.y;
+        this.x += vx;
+        this.y += vy;
+        this.y += 1.5; // Gravity
+    }
+
+    constrain() {
+        if (this.y > canvas.height - 50) {
+            this.y = canvas.height - 50;
+            this.x -= (this.x - this.oldx) * 0.5; // Friction
+        }
+    }
+}
+
+class Stick {
+    constructor(p1, p2, length) {
+        this.p1 = p1;
+        this.p2 = p2;
+        this.length = length;
+    }
+
+    update() {
+        const dx = this.p2.x - this.p1.x;
+        const dy = this.p2.y - this.p1.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const difference = this.length - distance;
+        const percent = difference / distance / 2;
+        const offsetX = dx * percent;
+        const offsetY = dy * percent;
+
+        this.p1.x -= offsetX;
+        this.p1.y -= offsetY;
+        this.p2.x += offsetX;
+        this.p2.y += offsetY;
+    }
+}
+
 class Stickman {
     constructor() {
-        // Body properties
-        this.body = { x: canvas.width/2, y: canvas.height/2, vy: 0 };
-        this.gravity = 0.5;
-        this.floorY = canvas.height - 50;
+        // Points for the stickman
+        this.head = new Point(canvas.width / 2, canvas.height / 2 - 50);
+        this.shoulder = new Point(canvas.width / 2, canvas.height / 2 - 20);
+        this.hip = new Point(canvas.width / 2, canvas.height / 2 + 30);
+        this.leftElbow = new Point(canvas.width / 2 - 40, canvas.height / 2 - 20);
+        this.rightElbow = new Point(canvas.width / 2 + 40, canvas.height / 2 - 20);
+        this.leftHand = new Point(canvas.width / 2 - 80, canvas.height / 2 - 20);
+        this.rightHand = new Point(canvas.width / 2 + 80, canvas.height / 2 - 20);
+        this.leftKnee = new Point(canvas.width / 2 - 30, canvas.height / 2 + 80);
+        this.rightKnee = new Point(canvas.width / 2 + 30, canvas.height / 2 + 80);
+        this.leftFoot = new Point(canvas.width / 2 - 30, canvas.height / 2 + 130);
+        this.rightFoot = new Point(canvas.width / 2 + 30, canvas.height / 2 + 130);
 
-        // Joints (angles in radians)
-        this.joints = {
-            // Arms
-            leftShoulder: { angle: 0, min: -Math.PI/2, max: Math.PI/2 },
-            leftElbow: { angle: 0, min: -Math.PI/2, max: 0 },
-            rightShoulder: { angle: 0, min: -Math.PI/2, max: Math.PI/2 },
-            rightElbow: { angle: 0, min: 0, max: Math.PI/2 },
-            
-            // Legs
-            leftHip: { angle: 0, min: -Math.PI/4, max: Math.PI/4 },
-            leftKnee: { angle: 0, min: 0, max: Math.PI/2 },
-            rightHip: { angle: 0, min: -Math.PI/4, max: Math.PI/4 },
-            rightKnee: { angle: 0, min: 0, max: Math.PI/2 }
-        };
+        // Sticks (limbs)
+        this.sticks = [
+            new Stick(this.head, this.shoulder, 30),
+            new Stick(this.shoulder, this.hip, 50),
+            new Stick(this.shoulder, this.leftElbow, 40),
+            new Stick(this.leftElbow, this.leftHand, 40),
+            new Stick(this.shoulder, this.rightElbow, 40),
+            new Stick(this.rightElbow, this.rightHand, 40),
+            new Stick(this.hip, this.leftKnee, 50),
+            new Stick(this.leftKnee, this.leftFoot, 50),
+            new Stick(this.hip, this.rightKnee, 50),
+            new Stick(this.rightKnee, this.rightFoot, 50)
+        ];
 
-        // Limb lengths
-        this.segmentLength = {
-            upperArm: 40,
-            lowerArm: 35,
-            upperLeg: 50,
-            lowerLeg: 45
+        // Joint angles (for AI control)
+        this.jointAngles = {
+            leftShoulder: 0,
+            rightShoulder: 0,
+            leftElbow: 0,
+            rightElbow: 0,
+            leftHip: 0,
+            rightHip: 0,
+            leftKnee: 0,
+            rightKnee: 0
         };
 
         this.feetOnGround = 0;
         this.timeBalanced = 0;
     }
 
-    applyPhysics() {
-        // Gravity
-        this.body.vy += this.gravity;
-        this.body.y += this.body.vy;
-
-        // Floor collision
-        if (this.body.y > this.floorY) {
-            this.body.y = this.floorY;
-            this.body.vy = 0;
-        }
-    }
-
-    getState() {
-        return [
-            this.body.y / canvas.height,
-            this.body.vy / 10,
-            ...Object.values(this.joints).map(j => j.angle / Math.PI)
-        ];
-    }
-
-    draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Draw head
-        ctx.beginPath();
-        ctx.arc(this.body.x, this.body.y - 50, 30, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Draw body
-        ctx.beginPath();
-        ctx.moveTo(this.body.x, this.body.y - 20);
-        ctx.lineTo(this.body.x, this.body.y + 30);
-        ctx.stroke();
-
-        // Draw limbs
-        this.drawArm('left');
-        this.drawArm('right');
-        this.drawLeg('left');
-        this.drawLeg('right');
-    }
-
-    drawArm(side) {
-        const prefix = side === 'left' ? 'left' : 'right';
-        const sign = side === 'left' ? -1 : 1;
-        
-        // Shoulder to elbow
-        const upperAngle = this.joints[`${prefix}Shoulder`].angle;
-        const elbowX = this.body.x + sign * Math.cos(upperAngle) * this.segmentLength.upperArm;
-        const elbowY = this.body.y - 20 + Math.sin(upperAngle) * this.segmentLength.upperArm;
-
-        // Elbow to hand
-        const lowerAngle = upperAngle + this.joints[`${prefix}Elbow`].angle;
-        const handX = elbowX + sign * Math.cos(lowerAngle) * this.segmentLength.lowerArm;
-        const handY = elbowY + Math.sin(lowerAngle) * this.segmentLength.lowerArm;
-
-        ctx.beginPath();
-        ctx.moveTo(this.body.x, this.body.y - 20);
-        ctx.lineTo(elbowX, elbowY);
-        ctx.lineTo(handX, handY);
-        ctx.stroke();
-    }
-
-    drawLeg(side) {
-        const prefix = side === 'left' ? 'left' : 'right';
-        const sign = side === 'left' ? -1 : 1;
-        
-        // Hip to knee
-        const upperAngle = this.joints[`${prefix}Hip`].angle;
-        const kneeX = this.body.x + sign * Math.cos(upperAngle) * this.segmentLength.upperLeg;
-        const kneeY = this.body.y + 30 + Math.sin(upperAngle) * this.segmentLength.upperLeg;
-
-        // Knee to foot
-        const lowerAngle = upperAngle + this.joints[`${prefix}Knee`].angle;
-        const footX = kneeX + sign * Math.cos(lowerAngle) * this.segmentLength.lowerLeg;
-        const footY = kneeY + Math.sin(lowerAngle) * this.segmentLength.lowerLeg;
-
-        // Check foot contact
-        if(footY >= this.floorY) this.feetOnGround++;
-
-        ctx.beginPath();
-        ctx.moveTo(this.body.x, this.body.y + 30);
-        ctx.lineTo(kneeX, kneeY);
-        ctx.lineTo(footX, footY);
-        ctx.stroke();
-    }
-}
-
-class AI {
-    constructor() {
-        // Neural network with input: [bodyY, velocity, 8 joint angles]
-        // Output: 8 joint adjustments
-        this.weights = Array(8 * 10).fill().map(() => Math.random() * 2 - 1);
-        this.reward = 0;
-    }
-
-    decideAction(state) {
-        const action = new Array(8).fill(0);
-        for(let i = 0; i < this.weights.length; i++) {
-            action[i % 8] += this.weights[i] * state[Math.floor(i / 8)];
-        }
-        return action.map(a => Math.tanh(a)); // Constrain outputs to [-1, 1]
-    }
-
-    mutate() {
-        this.weights = this.weights.map(w => 
-            w + (Math.random() - 0.5) * 0.1
-        );
-    }
-}
-
-const stickman = new Stickman();
-const ai = new AI();
-let episode = 0;
-
-function train() {
-    // Reset feet counter
-    stickman.feetOnGround = 0;
-
-    // Get state and action
-    const state = stickman.getState();
-    const action = ai.decideAction(state);
-
-    // Apply actions to joints
-    Object.keys(stickman.joints).forEach((jointName, i) => {
-        const joint = stickman.joints[jointName];
-        joint.angle += action[i] * 0.1;
-        joint.angle = Math.max(joint.min, Math.min(joint.max, joint.angle));
-    });
-
-    // Update physics
-    stickman.applyPhysics();
-    stickman.draw();
-
-    // Calculate reward
-    let reward = 0;
-    if(stickman.feetOnGround === 2) {
-        reward = 1;
-        stickman.timeBalanced++;
-        if(stickman.timeBalanced > 180) {
-            console.log("Success!");
-            location.reload();
-        }
-    } else {
-        reward = -0.1;
-        stickman.timeBalanced = 0;
-    }
-    ai.reward += reward;
-
-    // Evolutionary learning
-    if(episode % 100 === 0) {
-        if(ai.reward < 50) ai.mutate();
-        ai.reward = 0;
-    }
-
-    episode++;
-    requestAnimationFrame(train);
-}
-
-train();
+    update(dt) {
+        // Update points
+        this.head.update(dt);
+        this.shoulder.update(dt);
+        this.hip.update(dt);
+        this.leftElbow.update(dt);
+        this.rightElbow.update(dt);
+        this.leftHand.update(dt);
+        this.rightHand.update(dt);
+        this.leftKnee.update(dt);
+       
