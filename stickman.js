@@ -7,155 +7,193 @@ canvas.height = window.innerHeight;
 class Stickman {
     constructor() {
         // Body properties
-        this.body = { x: canvas.width / 2, y: canvas.height / 2, vy: 0 };
-        this.gravity = 0.5; // Gravity strength
-        this.floorY = canvas.height - 50; // Floor level
+        this.body = { x: canvas.width/2, y: canvas.height/2, vy: 0 };
+        this.gravity = 0.5;
+        this.floorY = canvas.height - 50;
 
-        // Limb properties
-        this.limbs = {
-            leftArm: { angle: 0, length: 50 },
-            rightArm: { angle: 0, length: 50 },
-            leftLeg: { angle: 0, length: 70 },
-            rightLeg: { angle: 0, length: 70 }
+        // Joints (angles in radians)
+        this.joints = {
+            // Arms
+            leftShoulder: { angle: 0, min: -Math.PI/2, max: Math.PI/2 },
+            leftElbow: { angle: 0, min: -Math.PI/2, max: 0 },
+            rightShoulder: { angle: 0, min: -Math.PI/2, max: Math.PI/2 },
+            rightElbow: { angle: 0, min: 0, max: Math.PI/2 },
+            
+            // Legs
+            leftHip: { angle: 0, min: -Math.PI/4, max: Math.PI/4 },
+            leftKnee: { angle: 0, min: 0, max: Math.PI/2 },
+            rightHip: { angle: 0, min: -Math.PI/4, max: Math.PI/4 },
+            rightKnee: { angle: 0, min: 0, max: Math.PI/2 }
         };
 
-        // Constraints
-        this.minAngle = -Math.PI / 2; // Minimum joint angle
-        this.maxAngle = Math.PI / 2; // Maximum joint angle
+        // Limb lengths
+        this.segmentLength = {
+            upperArm: 40,
+            lowerArm: 35,
+            upperLeg: 50,
+            lowerLeg: 45
+        };
 
-        // Goal tracking
-        this.feetOnGround = 0; // Number of feet touching the ground
-        this.timeBalanced = 0; // Time balanced in frames (60 frames = 1 second)
+        this.feetOnGround = 0;
+        this.timeBalanced = 0;
     }
 
-    // Apply physics (gravity and floor collision)
     applyPhysics() {
-        this.body.vy += this.gravity; // Apply gravity
-        this.body.y += this.body.vy; // Update vertical position
+        // Gravity
+        this.body.vy += this.gravity;
+        this.body.y += this.body.vy;
 
-        // Collision with floor
+        // Floor collision
         if (this.body.y > this.floorY) {
             this.body.y = this.floorY;
             this.body.vy = 0;
         }
     }
 
-    // Check if feet are touching the ground
-    checkFeetOnGround() {
-        const feetY = this.body.y + this.limbs.leftLeg.length;
-        this.feetOnGround = feetY >= this.floorY ? 2 : 0; // Simplified check
-    }
-
-    // Get the current state of the stickman
     getState() {
         return [
-            this.body.y / canvas.height, // Normalized body height
-            this.body.vy / 10, // Normalized vertical velocity
-            ...Object.values(this.limbs).map(limb => limb.angle / Math.PI) // Normalized limb angles
+            this.body.y / canvas.height,
+            this.body.vy / 10,
+            ...Object.values(this.joints).map(j => j.angle / Math.PI)
         ];
     }
 
-    // Draw the stickman
     draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Draw body
+        // Draw head
         ctx.beginPath();
         ctx.arc(this.body.x, this.body.y - 50, 30, 0, Math.PI * 2);
         ctx.stroke();
 
-        // Draw limbs with joints
-        this.drawLimb(this.body.x, this.body.y - 20, this.limbs.leftArm, -1); // Left arm
-        this.drawLimb(this.body.x, this.body.y - 20, this.limbs.rightArm, 1); // Right arm
-        this.drawLimb(this.body.x, this.body.y + 30, this.limbs.leftLeg, -1); // Left leg
-        this.drawLimb(this.body.x, this.body.y + 30, this.limbs.rightLeg, 1); // Right leg
+        // Draw body
+        ctx.beginPath();
+        ctx.moveTo(this.body.x, this.body.y - 20);
+        ctx.lineTo(this.body.x, this.body.y + 30);
+        ctx.stroke();
+
+        // Draw limbs
+        this.drawArm('left');
+        this.drawArm('right');
+        this.drawLeg('left');
+        this.drawLeg('right');
     }
 
-    // Draw a limb with joints
-    drawLimb(startX, startY, limb, direction) {
+    drawArm(side) {
+        const prefix = side === 'left' ? 'left' : 'right';
+        const sign = side === 'left' ? -1 : 1;
+        
+        // Shoulder to elbow
+        const upperAngle = this.joints[`${prefix}Shoulder`].angle;
+        const elbowX = this.body.x + sign * Math.cos(upperAngle) * this.segmentLength.upperArm;
+        const elbowY = this.body.y - 20 + Math.sin(upperAngle) * this.segmentLength.upperArm;
+
+        // Elbow to hand
+        const lowerAngle = upperAngle + this.joints[`${prefix}Elbow`].angle;
+        const handX = elbowX + sign * Math.cos(lowerAngle) * this.segmentLength.lowerArm;
+        const handY = elbowY + Math.sin(lowerAngle) * this.segmentLength.lowerArm;
+
         ctx.beginPath();
-        ctx.moveTo(startX, startY);
+        ctx.moveTo(this.body.x, this.body.y - 20);
+        ctx.lineTo(elbowX, elbowY);
+        ctx.lineTo(handX, handY);
+        ctx.stroke();
+    }
 
-        // Calculate elbow/knee position
-        const jointX = startX + Math.cos(limb.angle * direction) * limb.length;
-        const jointY = startY + Math.sin(limb.angle * direction) * limb.length;
-        ctx.lineTo(jointX, jointY);
+    drawLeg(side) {
+        const prefix = side === 'left' ? 'left' : 'right';
+        const sign = side === 'left' ? -1 : 1;
+        
+        // Hip to knee
+        const upperAngle = this.joints[`${prefix}Hip`].angle;
+        const kneeX = this.body.x + sign * Math.cos(upperAngle) * this.segmentLength.upperLeg;
+        const kneeY = this.body.y + 30 + Math.sin(upperAngle) * this.segmentLength.upperLeg;
 
-        // Calculate hand/foot position
-        const endX = jointX + Math.cos(limb.angle * direction + Math.PI / 4) * limb.length;
-        const endY = jointY + Math.sin(limb.angle * direction + Math.PI / 4) * limb.length;
-        ctx.lineTo(endX, endY);
+        // Knee to foot
+        const lowerAngle = upperAngle + this.joints[`${prefix}Knee`].angle;
+        const footX = kneeX + sign * Math.cos(lowerAngle) * this.segmentLength.lowerLeg;
+        const footY = kneeY + Math.sin(lowerAngle) * this.segmentLength.lowerLeg;
 
+        // Check foot contact
+        if(footY >= this.floorY) this.feetOnGround++;
+
+        ctx.beginPath();
+        ctx.moveTo(this.body.x, this.body.y + 30);
+        ctx.lineTo(kneeX, kneeY);
+        ctx.lineTo(footX, footY);
         ctx.stroke();
     }
 }
 
 class AI {
     constructor() {
-        // Simple neural network weights
-        this.weights = Array(8).fill().map(() => Math.random() * 2 - 1);
-        this.reward = 0; // Cumulative reward
+        // Neural network with input: [bodyY, velocity, 8 joint angles]
+        // Output: 8 joint adjustments
+        this.weights = Array(8 * 10).fill().map(() => Math.random() * 2 - 1);
+        this.reward = 0;
     }
 
-    // Decide action based on current state
     decideAction(state) {
-        const action = [0, 0, 0, 0]; // Actions for each limb
-        for (let i = 0; i < this.weights.length; i++) {
-            action[i % 4] += this.weights[i] * state[Math.floor(i / 2)];
+        const action = new Array(8).fill(0);
+        for(let i = 0; i < this.weights.length; i++) {
+            action[i % 8] += this.weights[i] * state[Math.floor(i / 8)];
         }
-        return action;
+        return action.map(a => Math.tanh(a)); // Constrain outputs to [-1, 1]
     }
 
-    // Mutate weights for learning
     mutate() {
-        this.weights = this.weights.map(w => w + (Math.random() * 0.2 - 0.1));
+        this.weights = this.weights.map(w => 
+            w + (Math.random() - 0.5) * 0.1
+        );
     }
 }
 
-// Initialize stickman and AI
 const stickman = new Stickman();
 const ai = new AI();
 let episode = 0;
 
 function train() {
-    // Get current state and decide action
+    // Reset feet counter
+    stickman.feetOnGround = 0;
+
+    // Get state and action
     const state = stickman.getState();
     const action = ai.decideAction(state);
 
-    // Apply action to limbs
-    Object.keys(stickman.limbs).forEach((limb, i) => {
-        stickman.limbs[limb].angle += action[i] * 0.1;
-        stickman.limbs[limb].angle = Math.max(stickman.minAngle, Math.min(stickman.maxAngle, stickman.limbs[limb].angle));
+    // Apply actions to joints
+    Object.keys(stickman.joints).forEach((jointName, i) => {
+        const joint = stickman.joints[jointName];
+        joint.angle += action[i] * 0.1;
+        joint.angle = Math.max(joint.min, Math.min(joint.max, joint.angle));
     });
 
-    // Apply physics and check feet
+    // Update physics
     stickman.applyPhysics();
-    stickman.checkFeetOnGround();
-
-    // Calculate reward
-    if (stickman.feetOnGround === 2) {
-        ai.reward += 1;
-        stickman.timeBalanced++;
-        if (stickman.timeBalanced > 180) { // 3 seconds at 60fps
-            console.log("Success! AI balanced for 3 seconds.");
-            location.reload(); // Reset training
-        }
-    } else {
-        stickman.timeBalanced = 0;
-    }
-
-    // Draw stickman
     stickman.draw();
 
-    // Continue training
-    requestAnimationFrame(train);
-    episode++;
-
-    // Mutate AI weights periodically
-    if (episode % 100 === 0) {
-        ai.mutate();
+    // Calculate reward
+    let reward = 0;
+    if(stickman.feetOnGround === 2) {
+        reward = 1;
+        stickman.timeBalanced++;
+        if(stickman.timeBalanced > 180) {
+            console.log("Success!");
+            location.reload();
+        }
+    } else {
+        reward = -0.1;
+        stickman.timeBalanced = 0;
     }
+    ai.reward += reward;
+
+    // Evolutionary learning
+    if(episode % 100 === 0) {
+        if(ai.reward < 50) ai.mutate();
+        ai.reward = 0;
+    }
+
+    episode++;
+    requestAnimationFrame(train);
 }
 
-// Start training
 train();
