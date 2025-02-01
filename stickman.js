@@ -1,20 +1,40 @@
 const canvas = document.getElementById('stickmanCanvas');
 const ctx = canvas.getContext('2d');
+
+// Ensure canvas and context exist
+if (!canvas || !ctx) {
+    throw new Error('Canvas or context not found');
+}
+
+// Speed button
 const speedButton = document.createElement('button');
-speedButton.textContent = 'Speed x1000';
+speedButton.textContent = 'Speed x10';
 speedButton.style.position = 'absolute';
 speedButton.style.top = '10px';
 speedButton.style.left = '10px';
+speedButton.style.padding = '10px';
+speedButton.style.backgroundColor = '#007BFF';
+speedButton.style.color = '#FFF';
+speedButton.style.border = 'none';
+speedButton.style.borderRadius = '5px';
+speedButton.style.cursor = 'pointer';
 document.body.appendChild(speedButton);
 
 let speedMultiplier = 1;
 speedButton.addEventListener('click', () => {
-    speedMultiplier = speedMultiplier === 1 ? 1000 : 1;
+    speedMultiplier = speedMultiplier === 1 ? 10 : 1; // Toggle between 1 and 10
+    speedButton.textContent = `Speed x${speedMultiplier}`;
 });
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+// Canvas sizing
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
 
+// Point class
 class Point {
     constructor(x, y) {
         this.x = x;
@@ -30,7 +50,7 @@ class Point {
         this.oldy = this.y;
         this.x += vx;
         this.y += vy;
-        this.y += 0.5;
+        this.y += 0.5; // Gravity
     }
 
     constrain() {
@@ -49,6 +69,7 @@ class Point {
     }
 }
 
+// Stick class
 class Stick {
     constructor(p1, p2, length) {
         this.p1 = p1;
@@ -72,6 +93,7 @@ class Stick {
     }
 }
 
+// Stickman class
 class Stickman {
     constructor() {
         this.points = {
@@ -122,6 +144,7 @@ class Stickman {
     }
 }
 
+// AI class
 class AI {
     constructor() {
         this.jointForces = Object.keys(new Stickman().points).reduce((acc, joint) => {
@@ -132,7 +155,7 @@ class AI {
 
     decideAction() {
         Object.keys(this.jointForces).forEach(joint => {
-            this.jointForces[joint] = (Math.random() - 0.5) * 2;
+            this.jointForces[joint] = (Math.random() - 0.5) * 2; // Random forces
         });
     }
 
@@ -156,4 +179,5 @@ function train() {
     stickman.draw();
     requestAnimationFrame(train);
 }
+
 train();
