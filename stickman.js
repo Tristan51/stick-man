@@ -4,67 +4,158 @@ const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-let x = 100;
-let y = canvas.height / 2;
-let dx = 3; // Horizontal speed
-let frame = 0; // Track animation frames
-let isMovingRight = true; // Track direction
+class Stickman {
+    constructor() {
+        // Body properties
+        this.body = { x: canvas.width / 2, y: canvas.height / 2, vy: 0 };
+        this.gravity = 0.5; // Gravity strength
+        this.floorY = canvas.height - 50; // Floor level
 
-// Define walk cycle phases for legs and arms
-const walkPhases = [
-  { legAngle: -0.5, armAngle: 0.5 }, // Phase 1
-  { legAngle: 0, armAngle: 0 },      // Phase 2 (neutral)
-  { legAngle: 0.5, armAngle: -0.5 }, // Phase 3
-  { legAngle: 0, armAngle: 0 }       // Phase 4 (neutral)
-];
+        // Limb properties
+        this.limbs = {
+            leftArm: { angle: 0, length: 50 },
+            rightArm: { angle: 0, length: 50 },
+            leftLeg: { angle: 0, length: 70 },
+            rightLeg: { angle: 0, length: 70 }
+        };
 
-function drawStickMan() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Constraints
+        this.minAngle = -Math.PI / 2; // Minimum joint angle
+        this.maxAngle = Math.PI / 2; // Maximum joint angle
 
-  // Flip drawing direction if moving left
-  const direction = isMovingRight ? 1 : -1;
+        // Goal tracking
+        this.feetOnGround = 0; // Number of feet touching the ground
+        this.timeBalanced = 0; // Time balanced in frames (60 frames = 1 second)
+    }
 
-  // Head
-  ctx.beginPath();
-  ctx.arc(x, y - 50, 30, 0, Math.PI * 2);
-  ctx.stroke();
+    // Apply physics (gravity and floor collision)
+    applyPhysics() {
+        this.body.vy += this.gravity; // Apply gravity
+        this.body.y += this.body.vy; // Update vertical position
 
-  // Body
-  ctx.beginPath();
-  ctx.moveTo(x, y - 20);
-  ctx.lineTo(x, y + 50);
-  ctx.stroke();
+        // Collision with floor
+        if (this.body.y > this.floorY) {
+            this.body.y = this.floorY;
+            this.body.vy = 0;
+        }
+    }
 
-  // Arms
-  const currentPhase = walkPhases[Math.floor(frame) % walkPhases.length];
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x - 40 * direction + Math.cos(currentPhase.armAngle) * 30 * direction, y + Math.sin(currentPhase.armAngle) * 30);
-  ctx.moveTo(x, y);
-  ctx.lineTo(x + 40 * direction - Math.cos(currentPhase.armAngle) * 30 * direction, y - Math.sin(currentPhase.armAngle) * 30);
-  ctx.stroke();
+    // Check if feet are touching the ground
+    checkFeetOnGround() {
+        const feetY = this.body.y + this.limbs.leftLeg.length;
+        this.feetOnGround = feetY >= this.floorY ? 2 : 0; // Simplified check
+    }
 
-  // Legs
-  ctx.beginPath();
-  ctx.moveTo(x, y + 50);
-  ctx.lineTo(x - 30 * direction + Math.sin(currentPhase.legAngle) * 40 * direction, y + 100 + Math.cos(currentPhase.legAngle) * 40);
-  ctx.moveTo(x, y + 50);
-  ctx.lineTo(x + 30 * direction - Math.sin(currentPhase.legAngle) * 40 * direction, y + 100 - Math.cos(currentPhase.legAngle) * 40);
-  ctx.stroke();
+    // Get the current state of the stickman
+    getState() {
+        return [
+            this.body.y / canvas.height, // Normalized body height
+            this.body.vy / 10, // Normalized vertical velocity
+            ...Object.values(this.limbs).map(limb => limb.angle / Math.PI) // Normalized limb angles
+        ];
+    }
+
+    // Draw the stickman
+    draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw body
+        ctx.beginPath();
+        ctx.arc(this.body.x, this.body.y - 50, 30, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Draw limbs with joints
+        this.drawLimb(this.body.x, this.body.y - 20, this.limbs.leftArm, -1); // Left arm
+        this.drawLimb(this.body.x, this.body.y - 20, this.limbs.rightArm, 1); // Right arm
+        this.drawLimb(this.body.x, this.body.y + 30, this.limbs.leftLeg, -1); // Left leg
+        this.drawLimb(this.body.x, this.body.y + 30, this.limbs.rightLeg, 1); // Right leg
+    }
+
+    // Draw a limb with joints
+    drawLimb(startX, startY, limb, direction) {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+
+        // Calculate elbow/knee position
+        const jointX = startX + Math.cos(limb.angle * direction) * limb.length;
+        const jointY = startY + Math.sin(limb.angle * direction) * limb.length;
+        ctx.lineTo(jointX, jointY);
+
+        // Calculate hand/foot position
+        const endX = jointX + Math.cos(limb.angle * direction + Math.PI / 4) * limb.length;
+        const endY = jointY + Math.sin(limb.angle * direction + Math.PI / 4) * limb.length;
+        ctx.lineTo(endX, endY);
+
+        ctx.stroke();
+    }
 }
 
-function update() {
-  x += dx;
-  frame += 0.2; // Control animation speed
+class AI {
+    constructor() {
+        // Simple neural network weights
+        this.weights = Array(8).fill().map(() => Math.random() * 2 - 1);
+        this.reward = 0; // Cumulative reward
+    }
 
-  // Reverse direction at edges
-  if (x > canvas.width - 100 || x < 100) {
-    dx = -dx;
-    isMovingRight = !isMovingRight;
-  }
+    // Decide action based on current state
+    decideAction(state) {
+        const action = [0, 0, 0, 0]; // Actions for each limb
+        for (let i = 0; i < this.weights.length; i++) {
+            action[i % 4] += this.weights[i] * state[Math.floor(i / 2)];
+        }
+        return action;
+    }
 
-  drawStickMan();
-  requestAnimationFrame(update);
+    // Mutate weights for learning
+    mutate() {
+        this.weights = this.weights.map(w => w + (Math.random() * 0.2 - 0.1));
+    }
 }
 
-update();
+// Initialize stickman and AI
+const stickman = new Stickman();
+const ai = new AI();
+let episode = 0;
+
+function train() {
+    // Get current state and decide action
+    const state = stickman.getState();
+    const action = ai.decideAction(state);
+
+    // Apply action to limbs
+    Object.keys(stickman.limbs).forEach((limb, i) => {
+        stickman.limbs[limb].angle += action[i] * 0.1;
+        stickman.limbs[limb].angle = Math.max(stickman.minAngle, Math.min(stickman.maxAngle, stickman.limbs[limb].angle));
+    });
+
+    // Apply physics and check feet
+    stickman.applyPhysics();
+    stickman.checkFeetOnGround();
+
+    // Calculate reward
+    if (stickman.feetOnGround === 2) {
+        ai.reward += 1;
+        stickman.timeBalanced++;
+        if (stickman.timeBalanced > 180) { // 3 seconds at 60fps
+            console.log("Success! AI balanced for 3 seconds.");
+            location.reload(); // Reset training
+        }
+    } else {
+        stickman.timeBalanced = 0;
+    }
+
+    // Draw stickman
+    stickman.draw();
+
+    // Continue training
+    requestAnimationFrame(train);
+    episode++;
+
+    // Mutate AI weights periodically
+    if (episode % 100 === 0) {
+        ai.mutate();
+    }
+}
+
+// Start training
+train();
