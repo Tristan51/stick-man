@@ -100,7 +100,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 new Stick(this.points.rightKnee, this.points.rightFoot, 50)
             ];
 
-            // Tracking time for standing on two feet
             this.standingTime = 0;
             this.isStanding = false;
         }
@@ -110,12 +109,11 @@ document.addEventListener('DOMContentLoaded', () => {
             this.sticks.forEach(stick => stick.update());
             Object.values(this.points).forEach(point => point.constrain());
 
-            // Check if the stickman is standing
             const feetOnGround = this.isFeetOnGround();
             if (feetOnGround) {
                 this.standingTime += dt;
             } else {
-                this.standingTime = 0;  // Reset time if not standing
+                this.standingTime = 0;
             }
         }
 
@@ -132,7 +130,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Check if both feet are on the ground for 3 seconds (or depending on speed multiplier)
         isFeetOnGround() {
             return this.points.leftFoot.y >= canvas.height - 50 && this.points.rightFoot.y >= canvas.height - 50;
         }
@@ -147,9 +144,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         decideAction() {
-            // Apply random forces on joints
             Object.keys(this.jointForces).forEach(joint => {
-                this.jointForces[joint] = (Math.random() - 0.5) * 2;
+                this.jointForces[joint] = (Math.random() - 0.5) * 5; // Adjust force magnitude for visible effect
             });
         }
 
@@ -161,13 +157,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         reward(stickman) {
-            // Positive reward if feet are on the ground for enough time
             if (stickman.standingTime >= 3) {
-                return 1;  // Positive reward
+                return 1;
             } else if (stickman.standingTime > 0 && stickman.isFeetOnGround()) {
-                return 0.1;  // Small reward
+                return 0.1;
             } else {
-                return -1; // Negative reward if not balanced
+                return -1;
             }
         }
     }
@@ -188,11 +183,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         console.log(`Reward: ${reward}`);
 
-        // Adjust the AI's behavior based on reward
-        // For now, just log and visualize. We can add learning algorithms later.
-
         requestAnimationFrame(train);
     }
 
-    train();  // Start the training loop
+    train(); // Start the training loop
 });
