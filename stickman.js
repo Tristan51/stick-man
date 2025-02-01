@@ -1,5 +1,16 @@
 const canvas = document.getElementById('stickmanCanvas');
 const ctx = canvas.getContext('2d');
+const speedButton = document.createElement('button');
+speedButton.textContent = 'Speed x1000';
+speedButton.style.position = 'absolute';
+speedButton.style.top = '10px';
+speedButton.style.left = '10px';
+document.body.appendChild(speedButton);
+
+let speedMultiplier = 1;
+speedButton.addEventListener('click', () => {
+    speedMultiplier = speedMultiplier === 1 ? 1000 : 1;
+});
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -13,13 +24,13 @@ class Point {
     }
 
     update(dt) {
-        const vx = (this.x - this.oldx) * 0.9; // Increased friction
+        const vx = (this.x - this.oldx) * 0.9;
         const vy = (this.y - this.oldy) * 0.9;
         this.oldx = this.x;
         this.oldy = this.y;
         this.x += vx;
         this.y += vy;
-        this.y += 0.5; // Reduced Gravity
+        this.y += 0.5;
     }
 
     constrain() {
@@ -121,7 +132,7 @@ class AI {
 
     decideAction() {
         Object.keys(this.jointForces).forEach(joint => {
-            this.jointForces[joint] = (Math.random() - 0.5) * 2; 
+            this.jointForces[joint] = (Math.random() - 0.5) * 2;
         });
     }
 
@@ -137,9 +148,11 @@ const stickman = new Stickman();
 const ai = new AI();
 
 function train() {
-    ai.decideAction();
-    ai.applyActions(stickman);
-    stickman.update(1);
+    for (let i = 0; i < speedMultiplier; i++) {
+        ai.decideAction();
+        ai.applyActions(stickman);
+        stickman.update(1);
+    }
     stickman.draw();
     requestAnimationFrame(train);
 }
