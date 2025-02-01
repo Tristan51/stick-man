@@ -13,19 +13,27 @@ class Point {
     }
 
     update(dt) {
-        const vx = (this.x - this.oldx) * 0.99; // Damping
-        const vy = (this.y - this.oldy) * 0.99;
+        const vx = (this.x - this.oldx) * 0.98; // Added friction
+        const vy = (this.y - this.oldy) * 0.98;
         this.oldx = this.x;
         this.oldy = this.y;
         this.x += vx;
         this.y += vy;
-        this.y += 0.2; // Reduced Gravity
+        this.y += 0.8; // Reduced Gravity
     }
 
     constrain() {
         if (this.y > canvas.height - 50) {
             this.y = canvas.height - 50;
             this.oldy = this.y;
+        }
+        if (this.x < 0) {
+            this.x = 0;
+            this.oldx = this.x;
+        }
+        if (this.x > canvas.width) {
+            this.x = canvas.width;
+            this.oldx = this.x;
         }
     }
 }
