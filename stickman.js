@@ -44,14 +44,13 @@ document.addEventListener('DOMContentLoaded', () => {
             this.oldy = y;
         }
 
-        update() {
-            const vx = (this.x - this.oldx) * 0.9;
-            const vy = (this.y - this.oldy) * 0.9;
+        update(mutationX = 0, mutationY = 0) {
+            const vx = (this.x - this.oldx) * 0.9 + mutationX;
+            const vy = (this.y - this.oldy) * 0.9 + mutationY;
             this.oldx = this.x;
             this.oldy = this.y;
-            this.x += vx + (Math.random() - 0.5) * 2; // Add random movement
-            this.y += vy + (Math.random() - 0.5) * 2; // Add random movement
-            this.y += 0.01; // Gravity
+            this.x += vx;
+            this.y += vy + 0.5; // Gravity
         }
 
         constrain() {
@@ -120,10 +119,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             this.score = 0;
             this.timeStanding = 0;
+            this.mutationRate = 0.1;
         }
 
         update() {
-            Object.values(this.points).forEach(point => point.update());
+            Object.values(this.points).forEach(point => {
+                const mutationX = (Math.random() - 0.5) * this.mutationRate;
+                const mutationY = (Math.random() - 0.5) * this.mutationRate;
+                point.update(mutationX, mutationY);
+            });
             this.sticks.forEach(stick => stick.update());
             Object.values(this.points).forEach(point => point.constrain());
             this.evaluate();
