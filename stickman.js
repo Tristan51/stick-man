@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.oldx = this.x;
             this.oldy = this.y;
             this.x += vx;
-            this.y += vy + 0.5; // Gravity
+            this.y += vy + 0.1; // Gravity
         }
 
         constrain() {
