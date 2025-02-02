@@ -1,22 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('stickmanCanvas');
-    const ctx = canvas.getContext('2d');
+    if (!canvas) throw new Error('Canvas not found');
 
-    if (!canvas || !ctx) {
-        throw new Error('Canvas or context not found');
-    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas context not found');
 
     const speedButton = document.createElement('button');
     speedButton.textContent = 'Speed x1';
-    speedButton.style.position = 'absolute';
-    speedButton.style.top = '10px';
-    speedButton.style.left = '10px';
-    speedButton.style.padding = '10px';
-    speedButton.style.backgroundColor = '#007BFF';
-    speedButton.style.color = '#FFF';
-    speedButton.style.border = 'none';
-    speedButton.style.borderRadius = '5px';
-    speedButton.style.cursor = 'pointer';
+    Object.assign(speedButton.style, {
+        position: 'absolute', top: '10px', left: '10px', padding: '10px',
+        backgroundColor: '#007BFF', color: '#FFF', border: 'none',
+        borderRadius: '5px', cursor: 'pointer'
+    });
     document.body.appendChild(speedButton);
 
     const speedLevels = [1, 10, 100, 1000];
@@ -38,19 +33,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     class Point {
         constructor(x, y) {
-            this.x = x;
-            this.y = y;
-            this.oldx = x;
-            this.oldy = y;
+            this.x = this.oldx = x;
+            this.y = this.oldy = y;
         }
 
         update(mutationX = 0, mutationY = 0) {
             const vx = (this.x - this.oldx) * 0.9 + mutationX;
-            const vy = (this.y - this.oldy) * 0.9 + mutationY;
+            const vy = (this.y - this.oldy) * 0.9 + mutationY + 0.05; // Gravity included here
             this.oldx = this.x;
             this.oldy = this.y;
             this.x += vx;
-            this.y += vy + 0.05; // Reduced gravity
+            this.y += vy;
         }
 
         constrain() {
@@ -58,12 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.y = canvas.height - 50;
                 this.oldy = this.y;
             }
-            if (this.x < 0) {
-                this.x = 0;
-                this.oldx = this.x;
-            }
-            if (this.x > canvas.width) {
-                this.x = canvas.width;
+            if (this.x < 0 || this.x > canvas.width) {
+                this.x = Math.max(0, Math.min(canvas.width, this.x));
                 this.oldx = this.x;
             }
         }
@@ -83,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
         update() {
             const dx = this.p2.x - this.p1.x;
             const dy = this.p2.y - this.p1.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+            const distance = Math.hypot(dx, dy);
             const difference = this.length - distance;
             const percent = difference / distance / 2;
             const offsetX = dx * percent;
@@ -98,16 +87,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     class Stickman {
         constructor() {
+            const midX = canvas.width / 2;
+            const midY = canvas.height / 2;
+
             this.points = {
-                head: new Point(canvas.width / 2, canvas.height / 2 - 50),
-                shoulder: new Point(canvas.width / 2, canvas.height / 2 - 20),
-                leftHand: new Point(canvas.width / 2 - 40, canvas.height / 2),
-                rightHand: new Point(canvas.width / 2 + 40, canvas.height / 2),
-                hip: new Point(canvas.width / 2, canvas.height / 2 + 30),
-                leftKnee: new Point(canvas.width / 2 - 30, canvas.height / 2 + 80),
-                rightKnee: new Point(canvas.width / 2 + 30, canvas.height / 2 + 80),
-                leftFoot: new Point(canvas.width / 2 - 30, canvas.height / 2 + 130),
-                rightFoot: new Point(canvas.width / 2 + 30, canvas.height / 2 + 130)
+                head: new Point(midX, midY - 50),
+                shoulder: new Point(midX, midY - 20),
+                leftHand: new Point(midX - 40, midY),
+                rightHand: new Point(midX + 40, midY),
+                hip: new Point(midX, midY + 30),
+                leftKnee: new Point(midX - 30, midY + 80),
+                rightKnee: new Point(midX + 30, midY + 80),
+                leftFoot: new Point(midX - 30, midY + 130),
+                rightFoot: new Point(midX + 30, midY + 130)
             };
 
             this.sticks = [
@@ -123,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             this.score = 0;
             this.timeStanding = 0;
-            this.mutationRate = 0.2; // Slightly higher starting mutation rate
+            this.mutationRate = 0.2;
         }
 
         update() {
@@ -132,33 +124,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 const mutationY = (Math.random() - 0.5) * this.mutationRate;
                 point.update(mutationX, mutationY);
             });
+
             this.sticks.forEach(stick => stick.update());
             Object.values(this.points).forEach(point => point.constrain());
             this.evaluate();
         }
 
         evaluate() {
-            const feetTouching = [this.points.leftFoot, this.points.rightFoot].filter(p => p.isTouchingGround()).length;
-            const otherLimbsTouching = Object.keys(this.points).filter(key => !['leftFoot', 'rightFoot'].includes(key) && this.points[key].isTouchingGround()).length;
-            const allLimbsTouching = Object.values(this.points).every(p => p.isTouchingGround());
-            const allButOneLimbTouching = Object.values(this.points).filter(p => p.isTouchingGround()).length >= Object.values(this.points).length - 1;
+            const feet = [this.points.leftFoot, this.points.rightFoot];
+            const limbs = Object.values(this.points).filter(p => !feet.includes(p));
 
-            if ((feetTouching === 2 && otherLimbsTouching === 0) || (feetTouching <= 2 && otherLimbsTouching === 0)) {
+            const feetTouching = feet.filter(p => p.isTouchingGround()).length;
+            const limbsTouching = limbs.filter(p => p.isTouchingGround()).length;
+
+            if (feetTouching === 2 && limbsTouching === 0) {
                 this.timeStanding += 1 / 60 * speedMultiplier;
                 if (this.timeStanding >= 3) {
-                    this.score += 1;
-                    this.mutationRate *= 0.85; // Reduce mutation rate more significantly when successful
+                    this.score++;
+                    this.mutationRate *= 0.85;
                     this.timeStanding = 0;
-                    console.log("+1 Point! Score:", this.score);
+                    console.log(`+1 Point! Score: ${this.score}`);
                 }
             } else {
                 this.timeStanding = 0;
             }
 
-            if (allLimbsTouching || allButOneLimbTouching) {
-                this.score -= 1;
-                this.mutationRate = Math.min(this.mutationRate * 1.15, 0.5); // Increase mutation rate moderately
-                console.log("-1 Point! Score:", this.score);
+            if (limbsTouching >= limbs.length - 1) {
+                this.score--;
+                this.mutationRate = Math.min(this.mutationRate * 1.15, 0.5);
+                console.log(`-1 Point! Score: ${this.score}`);
             }
         }
 
