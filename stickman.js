@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error('Canvas or context not found');
     }
 
-    // Speed button
     const speedButton = document.createElement('button');
     speedButton.textContent = 'Speed x1';
     speedButton.style.position = 'absolute';
@@ -50,8 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const vy = (this.y - this.oldy) * 0.9;
             this.oldx = this.x;
             this.oldy = this.y;
-            this.x += vx;
-            this.y += vy;
+            this.x += vx + (Math.random() - 0.5) * 2; // Add random movement
+            this.y += vy + (Math.random() - 0.5) * 2; // Add random movement
             this.y += 0.5; // Gravity
         }
 
