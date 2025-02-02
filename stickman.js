@@ -38,12 +38,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         update(mutationX = 0, mutationY = 0) {
-            const damping = 0.95; // Reduced damping for more motion
-            const gravity = 0.3;  // Stronger gravity
-
+            const damping = 0.95;
+            const gravity = 0.3;
             const vx = (this.x - this.oldx) * damping + mutationX;
             const vy = (this.y - this.oldy) * damping + mutationY + gravity;
-
             this.oldx = this.x;
             this.oldy = this.y;
             this.x += vx;
@@ -53,11 +51,11 @@ document.addEventListener('DOMContentLoaded', () => {
         constrain() {
             if (this.y > canvas.height - 50) {
                 this.y = canvas.height - 50;
-                this.oldy = this.y - (this.oldy - this.y) * 0.5; // Simulate bounce
+                this.oldy = this.y - (this.oldy - this.y) * 0.5;
             }
             if (this.x < 0 || this.x > canvas.width) {
                 this.x = Math.max(0, Math.min(canvas.width, this.x));
-                this.oldx = this.x - (this.oldx - this.x) * 0.5; // Simulate bounce
+                this.oldx = this.x - (this.oldx - this.x) * 0.5;
             }
         }
 
@@ -81,7 +79,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const percent = difference / distance / 2;
             const offsetX = dx * percent;
             const offsetY = dy * percent;
-
             this.p1.x -= offsetX;
             this.p1.y -= offsetY;
             this.p2.x += offsetX;
@@ -90,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     class Stickman {
-        constructor() {
+        constructor(mutationRate = 1.0) {
             const midX = canvas.width / 2;
             const midY = canvas.height / 2;
 
@@ -119,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             this.score = 0;
             this.timeStanding = 0;
-            this.mutationRate = 1.0; // Increased mutation rate
+            this.mutationRate = mutationRate;
         }
 
         update() {
@@ -145,42 +142,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.timeStanding += 1 / 60 * speedMultiplier;
                 if (this.timeStanding >= 3) {
                     this.score++;
-                    this.mutationRate *= 0.85;
-                    this.timeStanding = 0;
-                    console.log(`+1 Point! Score: ${this.score}`);
                 }
             } else {
                 this.timeStanding = 0;
             }
-
-            if (limbsTouching >= limbs.length - 1) {
-                this.score--;
-                this.mutationRate = Math.min(this.mutationRate * 1.15, 1.5);
-                console.log(`-1 Point! Score: ${this.score}`);
-            }
-        }
-
-        draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.beginPath();
-            ctx.arc(this.points.head.x, this.points.head.y, 30, 0, Math.PI * 2);
-            ctx.stroke();
-            this.sticks.forEach(stick => {
-                ctx.beginPath();
-                ctx.moveTo(stick.p1.x, stick.p1.y);
-                ctx.lineTo(stick.p2.x, stick.p2.y);
-                ctx.stroke();
-            });
         }
     }
 
-    const stickman = new Stickman();
+    let population = Array.from({ length: 20 }, () => new Stickman());
+
+    function evolve() {
+        population.sort((a, b) => b.score - a.score);
+        const survivors = population.slice(0, 5);
+
+        const offspring = [];
+        while (offspring.length < 15) {
+            const parent = survivors[Math.floor(Math.random() * survivors.length)];
+            const mutatedRate = parent.mutationRate * (0.9 + Math.random() * 0.2);
+            offspring.push(new Stickman(mutatedRate));
+        }
+
+        population = [...survivors, ...offspring];
+    }
 
     function train() {
         for (let i = 0; i < speedMultiplier; i++) {
-            stickman.update();
+            population.forEach(stickman => stickman.update());
         }
-        stickman.draw();
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        population.forEach(stickman => stickman.sticks.forEach(stick => {
+            ctx.beginPath();
+            ctx.moveTo(stick.p1.x, stick.p1.y);
+            ctx.lineTo(stick.p2.x, stick.p2.y);
+            ctx.stroke();
+        }));
+
+        if (Math.random() < 0.01) evolve(); // Occasionally trigger evolution
         requestAnimationFrame(train);
     }
 
