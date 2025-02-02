@@ -38,8 +38,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         update(mutationX = 0, mutationY = 0) {
-            const vx = (this.x - this.oldx) * 0.9 + mutationX;
-            const vy = (this.y - this.oldy) * 0.9 + mutationY + 0.05; // Gravity included here
+            const damping = 0.95; // Reduced damping for more motion
+            const gravity = 0.3;  // Stronger gravity
+
+            const vx = (this.x - this.oldx) * damping + mutationX;
+            const vy = (this.y - this.oldy) * damping + mutationY + gravity;
+
             this.oldx = this.x;
             this.oldy = this.y;
             this.x += vx;
@@ -49,11 +53,11 @@ document.addEventListener('DOMContentLoaded', () => {
         constrain() {
             if (this.y > canvas.height - 50) {
                 this.y = canvas.height - 50;
-                this.oldy = this.y;
+                this.oldy = this.y - (this.oldy - this.y) * 0.5; // Simulate bounce
             }
             if (this.x < 0 || this.x > canvas.width) {
                 this.x = Math.max(0, Math.min(canvas.width, this.x));
-                this.oldx = this.x;
+                this.oldx = this.x - (this.oldx - this.x) * 0.5; // Simulate bounce
             }
         }
 
@@ -115,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             this.score = 0;
             this.timeStanding = 0;
-            this.mutationRate = 0.2;
+            this.mutationRate = 1.0; // Increased mutation rate
         }
 
         update() {
@@ -151,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (limbsTouching >= limbs.length - 1) {
                 this.score--;
-                this.mutationRate = Math.min(this.mutationRate * 1.15, 0.5);
+                this.mutationRate = Math.min(this.mutationRate * 1.15, 1.5);
                 console.log(`-1 Point! Score: ${this.score}`);
             }
         }
