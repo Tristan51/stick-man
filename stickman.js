@@ -147,6 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.timeStanding += 1 / 60 * speedMultiplier;
                 if (this.timeStanding >= 3) {
                     this.score += 1;
+                    this.mutationRate *= 0.9; // Reduce mutation rate when successful
                     this.timeStanding = 0;
                     console.log("+1 Point! Score:", this.score);
                 }
@@ -156,6 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (allLimbsTouching || allButOneLimbTouching) {
                 this.score -= 1;
+                this.mutationRate *= 1.1; // Increase mutation rate when failing
                 console.log("-1 Point! Score:", this.score);
             }
         }
