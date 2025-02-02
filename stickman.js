@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.oldy = this.y;
             this.x += vx + (Math.random() - 0.5) * 2; // Add random movement
             this.y += vy + (Math.random() - 0.5) * 2; // Add random movement
-            this.y += 0.1; // Gravity
+            this.y += 0.01; // Gravity
         }
 
         constrain() {
