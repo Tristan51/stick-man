@@ -67,6 +67,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.oldx = this.x;
             }
         }
+
+        isTouchingGround() {
+            return this.y >= canvas.height - 50;
+        }
     }
 
     class Stick {
@@ -134,10 +138,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         evaluate() {
-            const feetOnGround = this.points.leftFoot.y >= canvas.height - 50 && this.points.rightFoot.y >= canvas.height - 50;
-            const otherLimbsTouching = Object.keys(this.points).some(key => key !== 'leftFoot' && key !== 'rightFoot' && this.points[key].y >= canvas.height - 50);
+            const feetTouching = [this.points.leftFoot, this.points.rightFoot].filter(p => p.isTouchingGround()).length;
+            const otherLimbsTouching = Object.keys(this.points).filter(key => !['leftFoot', 'rightFoot'].includes(key) && this.points[key].isTouchingGround()).length;
+            const allLimbsTouching = Object.values(this.points).every(p => p.isTouchingGround());
+            const allButOneLimbTouching = Object.values(this.points).filter(p => p.isTouchingGround()).length >= Object.values(this.points).length - 1;
 
-            if (feetOnGround && !otherLimbsTouching) {
+            if ((feetTouching === 2 && otherLimbsTouching === 0) || (feetTouching <= 2 && otherLimbsTouching === 0)) {
                 this.timeStanding += 1 / 60 * speedMultiplier;
                 if (this.timeStanding >= 3) {
                     this.score += 1;
@@ -146,10 +152,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 this.timeStanding = 0;
-                if (Object.values(this.points).every(p => p.y >= canvas.height - 50)) {
-                    this.score -= 1;
-                    console.log("-1 Point! Score:", this.score);
-                }
+            }
+
+            if (allLimbsTouching || allButOneLimbTouching) {
+                this.score -= 1;
+                console.log("-1 Point! Score:", this.score);
             }
         }
 
